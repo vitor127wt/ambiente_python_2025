@@ -1,186 +1,249 @@
-from tomlkit import TOMLDocument, array, comment, document, inline_table, table
+from typing import TYPE_CHECKING, Any
+
+from tomlkit import TOMLDocument, array, comment, document, dumps, table
+
+if TYPE_CHECKING:
+    from tomlkit.items import Table
 
 
-def create_toml(
-    version: str,
-    project_name: str,
-    *,
-    settings: dict[str, str],
-) -> TOMLDocument:
-    toml = document()
-    toml.add(
-        comment(
-            """============================\n# Projeto\n# Referência: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/\n# \n# Instale o pacote: python-dotenv\n# Mostrei como no README.md\n# \n# Os pontos de atenção estão comentados próximo das chaves, aqui só coloquei um\n# lembrete.\n# \n# Atenção: As versões do Python devem ser consistentes entre:\n#     - project.requires-python\n#     - tool.ruff.target-version\n#     - tool.pyright.pythonVersion\n# \n# Atenção: O nome do pacote principal deve ser consistente entre:\n#     - project.scripts\n#     - tool.ruff.lint.isort.known-first-party\n#     - A pasta dentro de 'src/'\n# \n# Thanks = "https://www.otaviomiranda.com.br/"\n# Thanks to Otávio Miranda for providing this template file\n# ============================"""
-        )
-    )
-
+def project_toml(project_name: str, version: str, settings: dict[Any, Any]) -> Table:
     project = table()
+    urls = table()
+    authors = array()
+    scripts = table()
 
     project.add("name", project_name)
     project.add("version", "0.0.1")
     project.add("description", project_name)
     project.add("readme", "README.md")
-    project.add("authors", [{"name": f"{settings['name']}", "email": f"{settings['email']}"}])
     project.add("requires-python", f">={version}")
     project.add("dependencies", [])
 
-    toml.add("project", project)
+    urls.add("Repository", f"https://github.com/{settings['git_user']}/{project_name}")
 
-    project_urls = table()
+    authors.append({"name": settings["name"], "email": settings["email"]})  # type: ignore
 
-    project_urls.add("Repository", f"https://github.com/{settings['git_user']}/{project_name}")
+    comment_ = [
+        "Define os comandos de console. A chave ('{project_name}') é o comando.\n",
+        "# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n",
+        "# Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).\n",
+        "# Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.\n",
+        f'# {project_name} = "{settings["main_package_name"]}.my_module:my_function',
+    ]
 
-    toml.add("project.urls", project_urls)
+    scripts.add(comment("".join(comment_)))
+    scripts.add(f"{project_name}", f"{settings['main_package_name']}.my_module:my_function")
+    project.add("urls", urls)
+    project.add("authors", authors)
+    project.add("scripts", scripts)
 
-    project_scripts = table()
-    toml.add("project.scripts", project_scripts)
+    return project
 
-    toml.add(
-        comment(
-            f'''Define os comandos de console. A chave ('{project_name}') é o comando.\n# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n# Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).\n# Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.\n# {project_name} = "{settings["main_package_name"]}.my_module:function"'''
-        )
-    )
 
-    toml.add(comment("""============================\n# Lint e formatação (Ruff)\n# ============================"""))
-    tool_ruff = table()
-    tool_ruff.add("line-length", 80)
-    tool_ruff.add("target-version", f"py{version.replace('.', '')[:3]}")
-    tool_ruff.add("fix", True)
-    tool_ruff.add("show-fixes", True)
-    tool_ruff.add("indent-width", 4)
-    tool_ruff.add("exclude", array(f"{['venv', '.venv', 'env', '.env', 'node_modules', '__pycache__']}"))
+def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
+    # Add to a tool() object
 
-    toml.add("tool.ruff", tool_ruff)
+    ruff = table()
+    ruff.add(comment("""============================\n# Lint e formatação (Ruff)\n# ============================"""))
+    lint = table()  # -> ruff
+    format_ = table()  # -> ruff
+    per_file_ignores = table()  # -> lint
+    isort = table()  # -> lint
+    mccabe = table()  # -> lint
 
+    ruff.add("line-length", 80)
+    ruff.add("target-version", f"py{version.replace('.', '')[:3]}")
+    ruff.add("fix", True)  # noqa: FBT003
+    ruff.add("show-fixes", True)  # noqa: FBT003
+    ruff.add("indent-width", 4)
+    ruff.add("exclude", ["venv", ".venv", "env", ".env", "node_modules", "__pycache__"])
+
+    # Check lint Rules
     if not settings["ruff_lint_rules_select"]:
-        ruff_rules_lint_select = f"{
-            [
-                'ASYNC',
-                'A',
-                'ANN',
-                'B',
-                'BLE',
-                'C4',
-                'C90',
-                'COM',
-                'E',
-                'EM',
-                'ERA',
-                'EXE',
-                'F',
-                'FBT',
-                'FIX',
-                'I',
-                'ICN',
-                'ISC',
-                'Q',
-                'RET',
-                'RSE',
-                'S',
-                'SIM',
-                'SLF',
-                'T10',
-                'T20',
-                'TC',
-                'TD',
-                'TRY',
-                'UP',
-                'W',
-                'YTT',
-                'RUF',
-                'N',
-            ]
-        }"
+        ruff_rules_lint_select = [
+            "ASYNC",
+            "A",
+            "ANN",
+            "B",
+            "BLE",
+            "C4",
+            "C90",
+            "COM",
+            "E",
+            "EM",
+            "ERA",
+            "EXE",
+            "F",
+            "FBT",
+            "FIX",
+            "I",
+            "ICN",
+            "ISC",
+            "Q",
+            "RET",
+            "RSE",
+            "S",
+            "SIM",
+            "SLF",
+            "T10",
+            "T20",
+            "TC",
+            "TD",
+            "TRY",
+            "UP",
+            "W",
+            "YTT",
+            "RUF",
+            "N",
+        ]
+
     else:
         ruff_rules_lint_select = settings["ruff_lint_rules_select"]
-    tool_ruff_lint = table()
-    tool_ruff_lint.add("select", ruff_rules_lint_select)
-    tool_ruff_lint.add("ignore", settings["ruff_lint_rules_ignore"])
-    toml.add("tool.ruff.lint", tool_ruff_lint)
 
-    tool_ruff_lint_per_file_ignores = table()
-    tool_ruff_lint_per_file_ignores.add("tests/**/*.py", array(f"{['ANN201', 'S101']}"))
+    lint.add("select", ruff_rules_lint_select)
+    lint.add("ignore", settings["ruff_lint_rules_ignore"])
 
-    toml.add("tool.ruff.lint.per-file-ignores", tool_ruff_lint_per_file_ignores)
+    per_file_ignores.add("tests/**/*.py", ["ANN201", "S101"])
 
-    tool_ruff_format = table()
+    format_.add("quote-style", "double")
+    format_.add("indent-style", "space")
+    format_.add("line-ending", "cr-lf")
 
-    tool_ruff_format.add("quote-style", "double")
-    tool_ruff_format.add("indent-style", "space")
-    tool_ruff_format.add("line-ending", "cr-lf")
+    mccabe.add("max-complexity", 10)
+    isort.add("known-first-party", [f"{settings['main_package_name']}"])
 
-    toml.add("tool.ruff.format", tool_ruff_format)
+    lint.add("per-file-ignores", per_file_ignores)
+    lint.add("isort", isort)
+    lint.add("mccabe", mccabe)
+    ruff.add("lint", lint)
+    ruff.add("format", format_)
+    return ruff
 
-    tool_ruff_lint_isort = table()
 
-    toml.add(
-        comment(
-            """Ensina ao Ruff qual é o pacote principal do seu projeto.\n# Deve ser o mesmo nome da pasta dentro de 'src/'."""
-        )
-    )
-    tool_ruff_lint_isort.add("known-first-party", array(f"{['my_package']}"))
+def tool_pyright_toml(version: str) -> Table:
+    # Add to a tool() object
+    pyright = table()
 
-    toml.add("tool.ruff.lint.isort", tool_ruff_lint_isort)
+    pyright.add(comment("""============================\n# Tipagem (Pyright)\n# ============================"""))
+    pyright.add("typeCheckingMode", "strict")
+    pyright.add("pythonVersion", f"{version}")
+    pyright.add("include", ["src", "tests"])
+    pyright.add("exclude", ["**/venv", "**/.venv", "**/env", "**/.env", "**/node_modules", "**/__pycache__", "**/.*"])
 
-    toml.add(comment("""============================\n# Tipagem (Pyright)\n# ============================"""))
-    tool_pyright = table()
+    pyright.add("venv", ".venv")
+    pyright.add("venvPath", ".")
+    pyright.add("executionEnvironments", [{"root": "src"}])
 
-    tool_pyright.add("typeCheckingMode", "strict")
-    tool_pyright.add("pythonVersion", f"{version}")
-    tool_pyright.add("include", array(f"{['src', 'tests']}"))
-    tool_pyright.add(
-        "exclude",
-        array(
-            f"{
-                [
-                    '**/venv',
-                    '**/.venv',
-                    '**/env',
-                    '**/.env',
-                    '**/node_modules',
-                    '**/__pycache__',
-                    '**/.*',
-                ]
-            }"
-        ),
-    )
-    tool_pyright.add("venv", ".venv")
-    tool_pyright.add("venvPath", ".")
-    tool_pyright.add("executionEnvironments", r'[{ root = "src" }]')
+    return pyright
 
-    toml.add("tool.pyright", tool_pyright)
-    toml.add(comment("""============================\n# Testes (Pytest)\n# ============================ """))
-    tool_pytest_ini_options = table()
 
-    tool_pytest_ini_options.add("addopts", "-s --color=yes --tb=short")
-    tool_pytest_ini_options.add("pythonpath", array(f"{['src']}"))
-    tool_pytest_ini_options.add("testpath", array(f"{['tests']}"))
+def tool_pytest_toml() -> Table:
+    # Add to a tool() object
+    pytest = table()
+    ini_options = table()
 
-    toml.add("tool.pytest.ini_options", tool_pytest_ini_options)
+    ini_options.add("addopts", "-s --color=yes --tb=short")
+    ini_options.add("pythonpath", ["src"])
+    ini_options.add("testpath", ["tests"])
 
-    toml.add(comment("""============================\n# Build e Setuptools\n# ============================"""))
+    pytest.add("ini_options", ini_options)
+
+    return pytest
+
+
+def build_system() -> Table:
     build_system = table()
+    build_system.add(comment("""============================\n# Build\n# ============================"""))
+    build_system.add("requires", ["hatchling"])  # type: ignore
+    build_system.add("build-backend", "hatchling.build")
 
-    build_system.add("requires", array(f"{['setuptools', 'wheel']}"))
-    build_system.add("build-backend", "setuptools.build_meta")
+    return build_system
 
-    toml.add("build-system", build_system)
 
-    tool_setuptools_packages_find = table()
+def hatchling() -> Table:
 
-    tool_setuptools_packages_find.add("where", array(f"{['src']}"))
+    hatch = table()
+    build = table()
+    targets = table()
+    wheel = table()
 
+    # O Hatchling espera uma lista de caminhos no argumento packages
+    packages_array = ["src"]
+
+    wheel.add("packages", packages_array)
+    targets.add("wheel", wheel)
+    build.add("targets", targets)
+    hatch.add("build", build)
+
+    return hatch
+
+
+def create_toml(version: str, project_name: str, *, settings: dict[str, str]) -> TOMLDocument:
+    toml = document()
+
+    toml.add(comment("============================"))
+    toml.add(comment("Projeto"))
+    toml.add(comment("Referência: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"))
+    toml.add(comment("\n"))
+    toml.add(comment("Instale o pacote: python-dotenv"))
+    toml.add(comment("Mostrei como no README.md"))
+    toml.add(comment("\n"))
+    toml.add(comment("Os pontos de atenção estão comentados próximo das chaves, aqui só coloquei um"))
+    toml.add(comment("lembrete"))
+    toml.add(comment("\n"))
     toml.add(
         comment(
-            """Informa ao setuptools para encontrar os pacotes dentro da pasta 'src'.\n# Essencial para a estrutura de layout com 'src/'."""
+            "Atenção: As versões do Python devem ser consistentes entre:\n# \
+                - project.requires-python\n#    \
+                - tool.ruff.target-version\n#   \
+                - tool.pyright.pythonVersion"
         )
     )
-    toml.add("tool.setuptools.packages.find", tool_setuptools_packages_find)
+    toml.add(comment("\n"))
+    toml.add(
+        comment(
+            "Atenção: O nome do pacote principal deve ser consistente entre:\n#    \
+            - project.scripts\n#    \
+            - tool.ruff.lint.isort.known-first-party\n#    \
+            - A pasta dentro de 'src/'"
+        )
+    )
+    toml.add(comment("\n"))
+    toml.add(
+        comment(
+            "Thanks = 'https://www.otaviomiranda.com.br/'\n# Thanks to Otávio Miranda for providing this template file"
+        )
+    )
+    toml.add(comment("============================"))
 
-    tool_setuptools = table()
+    toml.add("project", project_toml(project_name, version, settings=settings))
 
-    tool_setuptools.add("package-dir", inline_table().append("", "src"))
+    tool = table()
 
-    toml.add("tool.setuptools", tool_setuptools)
+    tool.add("ruff", tool_ruff_toml(version, settings))
+    tool.add("pyright", tool_pyright_toml(version))
+    tool.add("pytest", tool_pytest_toml())
+    tool.add("hatch", hatchling())
 
+    toml.add("tool", tool)
+
+    toml.add("build-system", build_system())
     return toml
+
+
+dummy_settings: dict[str, Any] = {
+    "name": "user",
+    "email": "example@example.com",
+    "main_package_name": "my_package",
+    "git_user": "user",
+    "dependencies": ["python-dotenv"],
+    "dev_dependencies": ["ruff", "pyright", "pytest", "pytest-xdist"],
+    "ruff_lint_rules_select": [],
+    "ruff_lint_rules_ignore": ["T201", "COM812"],
+    "vs_code_settings": {},
+    "vs_code_extensions": {"recommendations": []},
+}
+
+
+with open("teste_toml.toml", "w", encoding="utf-8") as f:
+    f.write(dumps(data=create_toml("3.14", project_name="name", settings=dummy_settings)))
