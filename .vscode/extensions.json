@@ -5,8 +5,18 @@
     "esbenp.prettier-vscode",
     "charliermarsh.ruff",
     "formulahendry.code-runner",
-    "bradlc.vscode-tailwindcss",
+    "ms-python.debugpy",
+    "ms-python.vscode-python-envs",
+    "ms-python.vscode-pylance",
+    "dywsy21.one-monokai-python-italic-customized",
+    "emmanuelbeziat.vscode-great-icons",
+    "vscode-icons-team.vscode-icons",
+    "redhat.vscode-xml",
+    "mechatroner.rainbow-csv",
+    "kevinrose.vsc-python-indent",
+    "oderwat.indent-rainbow",
     "chadalen.vscode-jetbrains-icon-theme",
-    "omthemes.omthemes"
+    "mohd-akram.vscode-html-format",
+    "aaron-bond.better-comments"
   ]
 }

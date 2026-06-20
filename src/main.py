@@ -1,7 +1,4 @@
-from my_package.my_module import my_function
+from my_package.main import main
 
-if __name__ == "__main__":
-    # Instale o pacote: python-dotenv
-    # Mostrei como no README.md
-    my_result = my_function(1, 2)
-    print(f"The result is {my_result}")
+if __name__ == "__name__":
+    main()

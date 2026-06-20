@@ -1,18 +1,15 @@
 {
   "window.zoomLevel": 0,
   "breadcrumbs.enabled": true,
-  "editor.fontSize": 24,
-  "debug.console.fontSize": 24,
-  "terminal.integrated.fontSize": 24,
+  "editor.fontSize": 18,
+  "debug.console.fontSize": 16,
+  "terminal.integrated.fontSize": 16,
   "editor.glyphMargin": true,
   "workbench.activityBar.location": "default",
   "editor.lineNumbers": "on",
-  "files.eol": "\n", // Final de linha sempre será LF
-  "workbench.editor.labelFormat": "short",
-  "editor.tabSize": 2,
-  "editor.rulers": [79, 120],
-  "workbench.iconTheme": "vscode-jetbrains-icon-theme-2023-dark",
-  "workbench.colorTheme": "OM Theme (Default Dracula Italic)",
+  "workbench.editor.labelFormat": "default",
+  "editor.tabSize": 4,
+  "editor.rulers": [80, 140],
   "explorer.compactFolders": false,
   "editor.minimap.enabled": false,
   "workbench.editor.enablePreview": false,
@@ -25,11 +22,13 @@
     "python": "clear ; python -u",
     "typescript": "npx tsx"
   },
-  "tailwindCSS.experimental.classRegex": [
-    ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
-  ],
+  // "tailwindCSS.experimental.classRegex": [
+  //   ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  // ],
   // Python
   "[python]": {
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.formatOnType": false,
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true,
     "editor.tabSize": 4,
@@ -39,12 +38,19 @@
       "source.organizeImports.ruff": "explicit"
     }
   },
-  "python.defaultInterpreterPath": ".\\.venv\\Scripts\\python.exe", // ou ./.venv/bin/python Mac/Linux
+  "python.defaultInterpreterPath": "", // ou ./.venv/bin/python Mac/Linux
   "python.analysis.autoImportCompletions": true,
   "python.terminal.activateEnvInCurrentTerminal": true,
   "python.terminal.activateEnvironment": true,
   "python.languageServer": "Pylance",
-  "python.venvPath": ".venv",
+  "python-envs.workspaceSearchPaths": [".venv", "*/.venv", ".env", "*/.env"],
+  "ruff.lineLength": 120,
+  "python.analysis.autoFormatStrings": true,
+  "python.createEnvironment.contentButton": "show",
+  "python.terminal.useEnvFile": true,
+  // "python-envs.terminal.showActivateButton": true,
+  // "python.venvPath": ".env",
+  // "python-envs.terminal.autoActivationType": "shellStartup",
 
   // 🛠 Formatação e Lint
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -83,5 +89,72 @@
       "comments": true,
       "strings": true
     }
-  }
+  },
+  // Personalização
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": ["punctuation.definition.decorator.python"],
+        "settings": {
+          "foreground": "#fc498b", // Mesma cor para o símbolo @
+          "fontStyle": "italic"
+        }
+      },
+      {
+        "scope": "storage.type.function.python",
+        "settings": {
+          "foreground": "#F92672"
+        }
+      }
+    ]
+  },
+  "editor.semanticTokenColorCustomizations": {
+    "rules": {
+      "module": "#5e6eff",
+      "*.typeHint": {
+        "foreground": "#66D9EF", // Cor verde limão
+        "fontStyle": "italic" // Aplica o itálico
+      }
+    }
+  },
+  "workbench.colorCustomizations": {
+    "terminal.ansiBlack": "#000000",
+    "terminal.ansiBlue": "#b2d6fb",
+    "terminal.ansiBrightBlack": "#686868",
+    "terminal.ansiBrightBlue": "#b2d6fb",
+    "terminal.ansiBrightCyan": "#478dc8",
+    "terminal.ansiBrightGreen": "#3cc5aa",
+    "terminal.ansiBrightMagenta": "#ffd1dc",
+    "terminal.ansiBrightRed": "#feb9b9",
+    "terminal.ansiBrightWhite": "#ffffff",
+    "terminal.ansiBrightYellow": "#fffbcc",
+    "terminal.ansiCyan": "#9CCFD8",
+    "terminal.ansiGreen": "#1dbb9b",
+    "terminal.ansiMagenta": "#a665a6",
+    "terminal.ansiRed": "#fea0a3",
+    "terminal.ansiWhite": "#ededed",
+    "terminal.ansiYellow": "#fffbcc",
+    "terminal.foreground": "#ffffff",
+    "terminal.selectionBackground": "#c1deff"
+  },
+
+  "terminal.integrated.fontLigatures.enabled": true,
+  "workbench.sideBar.location": "right",
+
+  "editor.fontFamily": "Cascadia Code NF",
+  "editor.fontLigatures": "'ss01', 'ss02', 'ss03', 'ss19', 'ss20'",
+  "editor.allowVariableFontsInAccessibilityMode": true,
+  "editor.letterSpacing": 0.0,
+  "editor.fontVariations": true,
+
+  // Indent Rainbow
+  "indentRainbow.indicatorStyle": "light",
+  "indentRainbow.lightIndicatorStyleLineWidth": 2,
+  "indentRainbow.updateDelay": 50,
+  "indentRainbow.colors": [
+    "rgba(255,255,64,0.3)",
+    "rgba(127,255,127,0.3)",
+    "rgba(255,127,255,0.3)",
+    "rgba(79,236,236,0.3)"
+  ]
 }

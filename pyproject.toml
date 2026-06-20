@@ -25,11 +25,14 @@ description = "project1"
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Seu nome", email = "seu@email.com" }]
-requires-python = ">=3.13"
-dependencies = ["python-dotenv>=1.1.0"]
+requires-python = ">=3.14"
+dependencies = [
+    "python-dotenv>=1.1.0",
+    "tomlkit>=0.15.0",
+]
 
 [project.urls]
-Homepage = "https://www.otaviomiranda.com.br/"
+# Thanks = "https://www.otaviomiranda.com.br/" <- Thanks to Otávio Miranda for providing this template file
 # Documentation = "https://example.org"
 # Repository = "https://github.com/me/spam.git"
 # Issues = "https://github.com/me/spam/issues"
@@ -43,14 +46,14 @@ dev = ["ruff", "pyright", "pytest", "pytest-xdist"]
 # O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.
 # Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).
 # Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.
-project1 = "my_package.my_module:run_from_script"
+pproject = "my_package.main:main"
 
 # ============================
 # Lint e formatação (Ruff)
 # ============================
 [tool.ruff]
-line-length = 88
-target-version = "py313"
+line-length = 80
+target-version = "py314"
 fix = true
 show-fixes = true
 indent-width = 4
@@ -101,7 +104,7 @@ ignore = ["T201", "COM812"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-line-ending = "lf"
+line-ending = "cr-lf"
 
 [tool.ruff.lint.isort]
 # Ensina ao Ruff qual é o pacote principal do seu projeto.
@@ -114,7 +117,7 @@ known-first-party = ["my_package"]
 # ============================
 [tool.pyright]
 typeCheckingMode = "strict"
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 include = ["src", 'tests']
 exclude = [
     "**/venv",
@@ -122,7 +125,8 @@ exclude = [
     "**/env",
     "**/.env",
     "**/node_modules",
-    "**/__pycache__",
+    "**/__pycache__", 
+    "**/.*",
 ]
 venv = ".venv"
 venvPath = "."
