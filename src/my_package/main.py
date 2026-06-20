@@ -7,7 +7,21 @@ from typing import Any
 
 from tomlkit import dumps
 
+from my_package import gitignore
 from my_package.toml_template import create_toml
+
+dummy_settings: dict[str, str | list[str] | dict[str, Any]] = {
+    "name": "user",
+    "email": "example@example.com",
+    "main_package_name": "my_package",
+    "git_user": "user",
+    "dependencies": ["python-dotenv"],
+    "dev_dependencies": ["ruff", "pyright", "pytest", "pytest-xdist"],
+    "ruff_lint_rules_select": [],
+    "ruff_lint_rules_ignore": ["T201", "COM812"],
+    "vs_code_settings": {},
+    "vs_code_extensions": {"recommendations": []},
+}
 
 
 def main() -> None:
@@ -15,18 +29,6 @@ def main() -> None:
     args = sys.argv
     path = Path.cwd()
 
-    dummy_settings: dict[str, str | list[str] | dict[str, Any]] = {
-        "name": "user",
-        "email": "example@example.com",
-        "main_package_name": "my_package",
-        "git_user": "user",
-        "dependencies": ["python-dotenv"],
-        "dev_dependencies": ["ruff", "pyright", "pytest", "pytest-xdist"],
-        "ruff_lint_rules_select": [],
-        "ruff_lint_rules_ignore": ["T201", "COM812"],
-        "vs_code_settings": {},
-        "vs_code_extensions": {"recommendations": []},
-    }
     settings_path = Path.home() / ".pproject.settings.json"
 
     if not settings_path.exists():
@@ -68,7 +70,7 @@ def main() -> None:
     with open(settings_path, encoding="utf-8") as f:
         settings = json.load(f)
 
-    subprocess.call(["uv", "init", project_name, "--python", version])
+    subprocess.call(["uv", "init", project_name, "--bare", "--python", version])
 
     project_path = path / f"{project_name}"
     vscode_path = project_path / ".vscode"
@@ -85,11 +87,19 @@ def main() -> None:
     package_path.mkdir(parents=True, exist_ok=True)
 
     main_file = project_path / "src/main.py"
-    main_file.write_text('print("Ola Mundo")', encoding="utf-8")
+    main_file.write_text(
+        'def main():\n    print("Olá Mundo")\n\nif __name__ == "__main__":\n    main()', encoding="utf-8"
+    )
 
     toml_path = project_path / "pyproject.toml"
     with open(toml_path, "w", encoding="utf-8") as f:
         f.write(dumps(data=create_toml(version=version, project_name=project_name, settings=settings)))
+
+    gitignore_path = project_path / ".gitignore"
+    gitignore_path.write_text(gitignore.template, encoding="utf-8")
+
+    read_me_path = project_path / "README.md"
+    read_me_path.write_text("", encoding="utf-8")
 
     if settings["dev_dependencies"]:
         command = ["uv", "add", "--dev", *settings["dev_dependencies"]]

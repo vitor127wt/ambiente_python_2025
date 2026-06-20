@@ -5,7 +5,7 @@ def create_toml(
     version: str,
     project_name: str,
     *,
-    settings: dict[str, str] = {"name": "user", "email": "example@example.com", "git_user": "user"},
+    settings: dict[str, str],
 ) -> TOMLDocument:
     toml = document()
     toml.add(
@@ -20,7 +20,6 @@ def create_toml(
     project.add("version", "0.0.1")
     project.add("description", project_name)
     project.add("readme", "README.md")
-    project.add("licence", "MIT")
     project.add("authors", [{"name": f"{settings['name']}", "email": f"{settings['email']}"}])
     project.add("requires-python", f">={version}")
     project.add("dependencies", [])
@@ -30,17 +29,15 @@ def create_toml(
     project_urls = table()
 
     project_urls.add("Repository", f"https://github.com/{settings['git_user']}/{project_name}")
-    project_optional_dependencies = table()
-    project_optional_dependencies.add("dev", [])
+
     toml.add("project.urls", project_urls)
-    toml.add("project.optional-dependencies", project_optional_dependencies)
 
     project_scripts = table()
     toml.add("project.scripts", project_scripts)
 
     toml.add(
         comment(
-            f'''Define os comandos de console. A chave ('{project_name}') é o comando.\n# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n# Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).\n# Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.\n# {project_name} = "my_package.my_module:run_from_script"'''
+            f'''Define os comandos de console. A chave ('{project_name}') é o comando.\n# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n# Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).\n# Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.\n# {project_name} = "{settings["main_package_name"]}.my_module:function"'''
         )
     )
 
