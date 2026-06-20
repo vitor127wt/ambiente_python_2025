@@ -5,18 +5,23 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from tomlkit import dumps
 
 from my_package import gitignore
 from my_package.toml_template import create_toml
 
-dummy_settings: dict[str, str | list[str] | dict[str, Any]] = {
+load_dotenv(".env")
+
+
+dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
     "name": "user",
     "email": "example@example.com",
     "main_package_name": "my_package",
     "git_user": "user",
     "dependencies": ["python-dotenv"],
-    "dev_dependencies": ["ruff", "pyright", "pytest", "pytest-xdist"],
+    "dev_dependencies": ["pytest", "pytest-xdist"],
+    "open_vscode": False,
     "ruff_lint_rules_select": [],
     "ruff_lint_rules_ignore": ["T201", "COM812"],
     "vs_code_settings": {},
@@ -90,11 +95,25 @@ def build_project_structure(project_path: Path, settings: dict[str, Any], versio
     package_path = project_path / f"src/{settings['main_package_name']}"
     package_path.mkdir(parents=True, exist_ok=True)
 
+    main = r"""import os
+
+from dotenv import load_dotenv
+
+
+def main() -> None:
+    load_dotenv()
+    print(f'\n{os.environ["GREETINGS"]}')
+
+
+if __name__ == "__main__":
+    main()
+"""
     main_file = project_path / "src/main.py"
-    main_file.write_text(
-        'def main() -> None:\n    print("Olá Mundo")\n\nif __name__ == "__main__":\n    main()\n', encoding="utf-8"
-    )
+    main_file.write_text(main, encoding="utf-8")
     (package_path / "__init__.py").write_text("", encoding="utf-8")
+
+    (project_path / "tests").mkdir(parents=True, exist_ok=True)
+
     # Metadata
     toml_path = project_path / "pyproject.toml"
     with open(toml_path, "w", encoding="utf-8") as f:
@@ -142,10 +161,17 @@ def main() -> None:
 
     install_dependencies(project_name=project_name, settings=settings)
 
-    (project_path / ".venv/.env").write_text("GREETINGS='hello'\n", encoding="utf-8")
+    (project_path / ".env").write_text(
+        "GREETINGS='Project created, enviroment variables working fine.'\n", encoding="utf-8"
+    )
 
     if git:
         init_git(project_name=project_name)
+
+    subprocess.call(["uv", "run", "main.py"], cwd=(project_path / "src"))  # noqa: S607
+
+    if settings["open_vscode"]:
+        subprocess.run(["code", str(project_name)], shell=True)  # noqa: S607, S602
 
 
 if __name__ == "__main__":
