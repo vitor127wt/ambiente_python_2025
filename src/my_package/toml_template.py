@@ -11,6 +11,7 @@ def project_toml(project_name: str, version: str, settings: dict[Any, Any]) -> T
     urls = table()
     authors = array()
     scripts = table()
+    optional_dependencies = table()
 
     project.add("name", project_name)
     project.add("version", "0.0.1")
@@ -33,9 +34,12 @@ def project_toml(project_name: str, version: str, settings: dict[Any, Any]) -> T
 
     scripts.add(comment("".join(comment_)))
     scripts.add(f"{project_name}", f"{settings['main_package_name']}.my_module:my_function")
+
+    optional_dependencies.add("dev", ["ruff", "pyright", "pytest", "pytest-xdist"])
     project.add("urls", urls)
     project.add("authors", authors)
     project.add("scripts", scripts)
+    project.add("optional-dependencies", optional_dependencies)
 
     return project
 

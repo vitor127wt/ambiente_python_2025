@@ -94,7 +94,7 @@ def build_project_structure(project_path: Path, settings: dict[str, Any], versio
     main_file.write_text(
         'def main() -> None:\n    print("Olá Mundo")\n\nif __name__ == "__main__":\n    main()\n', encoding="utf-8"
     )
-
+    (package_path / "__init__.py").write_text("", encoding="utf-8")
     # Metadata
     toml_path = project_path / "pyproject.toml"
     with open(toml_path, "w", encoding="utf-8") as f:
