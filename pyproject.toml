@@ -28,6 +28,7 @@ authors = [{ name = "Seu nome", email = "seu@email.com" }]
 requires-python = ">=3.14"
 dependencies = [
     "python-dotenv>=1.1.0",
+    "ruff>=0.11.12",
     "tomlkit>=0.15.0",
 ]
 
@@ -46,7 +47,7 @@ dev = ["ruff", "pyright", "pytest", "pytest-xdist"]
 # O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.
 # Ex: 'my_package.main:run' -> src/my_package/main.py (e a função run lá dentro).
 # Lembre-se de sincronizar o nome do pacote com 'known-first-party' do Ruff.
-pproject = "my_package.main:main"
+pproject = "main:main"
 
 # ============================
 # Lint e formatação (Ruff)
@@ -60,6 +61,7 @@ indent-width = 4
 exclude = ["venv", ".venv", "env", ".env", "node_modules", "__pycache__"]
 
 [tool.ruff.lint]
+fixable = ['ALL']
 select = [
     "ASYNC",
     "A",
@@ -96,7 +98,7 @@ select = [
     "RUF",
     "N",
 ]
-ignore = ["T201", "COM812"]
+ignore = ["T201", "COM812", "S607", "S605", "S603"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["ANN201", "S101"]

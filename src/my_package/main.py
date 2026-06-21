@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 import sys
@@ -19,10 +20,45 @@ dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
     "email": "example@example.com",
     "main_package_name": "my_package",
     "git_user": "user",
-    "dependencies": ["python-dotenv"],
-    "dev_dependencies": ["pytest", "pytest-xdist"],
+    "dependencies": [],
+    "dev_dependencies": ["ruff", "pytest", "pytest-xdist"],
     "open_vscode": False,
-    "ruff_lint_rules_select": [],
+    "ruff_lint_rules_select": [
+        "ASYNC",
+        "A",
+        "ANN",
+        "B",
+        "BLE",
+        "C4",
+        "C90",
+        "COM",
+        "E",
+        "EM",
+        "ERA",
+        "EXE",
+        "F",
+        "FBT",
+        "FIX",
+        "I",
+        "ICN",
+        "ISC",
+        "Q",
+        "RET",
+        "RSE",
+        "S",
+        "SIM",
+        "SLF",
+        "T10",
+        "T20",
+        "TC",
+        "TD",
+        "TRY",
+        "UP",
+        "W",
+        "YTT",
+        "RUF",
+        "N",
+    ],
     "ruff_lint_rules_ignore": ["T201", "COM812"],
     "vs_code_settings": {},
     "vs_code_extensions": {"recommendations": []},
@@ -30,7 +66,6 @@ dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
 
 
 def ensure_settings(settings_path: Path) -> None:
-
     if not settings_path.exists():
         settings_path.touch(exist_ok=True)
 
@@ -39,13 +74,12 @@ def ensure_settings(settings_path: Path) -> None:
 
 
 def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
-
     if len(args) < 2:
         print("Uso: pproject <nome_do_projeto>  OU  pproject -cfg")
         sys.exit(1)
 
     if args[1] in ["-cfg", "--config"]:
-        subprocess.run(f"notepad {settings_path}")  # noqa: S603
+        os.startfile(f"{settings_path}")  # noqa: S606
         sys.exit(0)
 
     project_name = args[1]
@@ -59,8 +93,12 @@ def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
             case "-v" | "--version":
                 if i + 1 < len(left_args):
                     if left_args[i + 1] == "global":
-                        version = subprocess.getoutput("python --version").split()[1]  # noqa: S605, S607
-                    if version := re.search(r"[0-9]+[.][0-9]+", left_args[i + 1]):
+                        version = subprocess.getoutput(
+                            "python --version"
+                        ).split()[1]
+                    if version := re.search(
+                        r"[0-9]+[.][0-9]+", left_args[i + 1]
+                    ):
                         version = version.group(0)
                     else:
                         print("❌ Erro: Versão do Python inválida.")
@@ -74,12 +112,19 @@ def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
                 pass
 
     if version is None:
-        version = subprocess.getoutput("python --version").split()[1]  # noqa: S605, S607
+        version = subprocess.getoutput("python --version").split()[1]
 
     return project_name, version, git
 
 
-def build_project_structure(project_path: Path, settings: dict[str, Any], version: str, project_name: str) -> None:
+def build_project_structure(
+    project_path: Path,
+    settings: dict[str, Any],
+    version: str,
+    project_name: str,
+    *,
+    git: bool,
+) -> None:
     # Vs Code folders and configs
     vscode_path = project_path / ".vscode"
     vscode_path.mkdir(exist_ok=True)
@@ -117,35 +162,46 @@ if __name__ == "__main__":
     # Metadata
     toml_path = project_path / "pyproject.toml"
     with open(toml_path, "w", encoding="utf-8") as f:
-        f.write(dumps(data=create_toml(version=version, project_name=project_name, settings=settings)))
+        f.write(
+            dumps(
+                data=create_toml(
+                    version=version,
+                    project_name=project_name,
+                    settings=settings,
+                )
+            )
+        )
 
-    (project_path / ".gitignore").write_text(gitignore.template, encoding="utf-8")
+    if git:
+        (project_path / ".gitignore").write_text(
+            gitignore.template, encoding="utf-8"
+        )
+
     (project_path / "README.md").write_text("", encoding="utf-8")
 
 
 def install_dependencies(project_name: str, settings: dict[str, Any]) -> None:
-
     if settings["dev_dependencies"]:
         command = ["uv", "add", "--dev", *settings["dev_dependencies"]]
-        subprocess.run(command, cwd=project_name)  # noqa: S603
+        subprocess.run(command, cwd=project_name)
 
     if settings["dependencies"]:
         command = ["uv", "add", *settings["dependencies"]]
-        subprocess.run(command, cwd=project_name)  # noqa: S603
+        subprocess.run(command, cwd=project_name)
 
 
 def init_git(project_name: str) -> None:
+    subprocess.run(["git", "init"], cwd=project_name, check=True)
+    subprocess.run(
+        ["git", "branch", "-M", "main"], cwd=project_name, check=True
+    )
+    subprocess.run(["git", "add", "."], cwd=project_name, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Clear Project"], cwd=project_name, check=True
+    )
 
-    subprocess.run(["git", "init"], cwd=project_name, check=True)  # noqa: S607
-    subprocess.run(["git", "branch", "-M", "main"], cwd=project_name, check=True)  # noqa: S607
-    subprocess.run(["git", "add", "."], cwd=project_name, check=True)  # noqa: S607
-    subprocess.run(["git", "commit", "-m", "Clear Project"], cwd=project_name, check=True)  # noqa: S607
 
-
-def main() -> None:
-    args = sys.argv
-    path = Path.cwd()
-
+def main(args: list[str], path: Path) -> None:
     settings_path = Path.home() / ".pproject.settings.json"
     ensure_settings(settings_path=settings_path)
 
@@ -154,25 +210,32 @@ def main() -> None:
     with open(settings_path, encoding="utf-8") as f:
         settings = json.load(f)
 
-    subprocess.call(["uv", "init", project_name, "--bare", "--python", version])  # noqa: S607, S603
+    subprocess.call(["uv", "init", project_name, "--bare", "--python", version])
 
     project_path = path / f"{project_name}"
-    build_project_structure(project_path=project_path, settings=settings, version=version, project_name=project_name)
+    build_project_structure(
+        project_path=project_path,
+        settings=settings,
+        version=version,
+        project_name=project_name,
+        git=git,
+    )
 
     install_dependencies(project_name=project_name, settings=settings)
 
     (project_path / ".env").write_text(
-        "GREETINGS='Project created, enviroment variables working fine.'\n", encoding="utf-8"
+        "GREETINGS='Project created, enviroment variables working fine.'\n",
+        encoding="utf-8",
     )
 
     if git:
         init_git(project_name=project_name)
 
-    subprocess.call(["uv", "run", "main.py"], cwd=(project_path / "src"))  # noqa: S607
+    subprocess.call(["uv", "run", "main.py"], cwd=(project_path / "src"))
 
     if settings["open_vscode"]:
-        subprocess.run(["code", str(project_name)], shell=True)  # noqa: S607, S602
+        subprocess.run(["code", str(project_name)], shell=True)  # noqa: S602
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv, Path.cwd())

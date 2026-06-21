@@ -62,6 +62,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "python-dotenv" },
+    { name = "ruff" },
     { name = "tomlkit" },
 ]
 
@@ -79,6 +80,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "ruff", specifier = ">=0.11.12" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "tomlkit", specifier = ">=0.15.0" },
 ]
