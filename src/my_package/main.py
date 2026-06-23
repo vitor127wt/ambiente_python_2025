@@ -73,7 +73,9 @@ def ensure_settings(settings_path: Path) -> None:
             json.dump(dummy_settings, f, indent=4, ensure_ascii=False)
 
 
-def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
+def parse_args(
+    args: list[str], settings_path: Path
+) -> tuple[str, str, bool, list[str]]:
     if len(args) < 2:
         print("Uso: pproject <nome_do_projeto>  OU  pproject -cfg")
         sys.exit(1)
@@ -87,7 +89,7 @@ def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
 
     version = None
     git = False
-
+    dependencies: list[str] = []
     for i, arg in enumerate(left_args):
         match arg:
             case "-v" | "--version":
@@ -108,13 +110,25 @@ def parse_args(args: list[str], settings_path: Path) -> tuple[str, str, bool]:
                     sys.exit(1)
             case "-g" | "--git":
                 git = True
+            case "-d" | "--dependency":
+                if i + 1 < len(left_args):
+                    if "," in left_args[i + 1]:
+                        dependencies = left_args[i + 1].split(",")
+                    else:
+                        dependencies = [left_args[i + 1]]
+                else:
+                    print(
+                        "❌ Erro: Informe a ou as dependencias"
+                        "após o parâmetro -d."
+                    )
+                    sys.exit(1)
             case _:
                 pass
 
     if version is None:
         version = subprocess.getoutput("python --version").split()[1]
 
-    return project_name, version, git
+    return project_name, version, git, dependencies
 
 
 def build_project_structure(
@@ -180,11 +194,13 @@ if __name__ == "__main__":
     (project_path / "README.md").write_text("", encoding="utf-8")
 
 
-def install_dependencies(project_name: str, settings: dict[str, Any]) -> None:
+def install_dependencies(
+    project_name: str, settings: dict[str, list[str]], dependencies: list[str]
+) -> None:
     if settings["dev_dependencies"]:
         command = ["uv", "add", "--dev", *settings["dev_dependencies"]]
         subprocess.run(command, cwd=project_name)
-
+    settings["dependencies"].extend(dependencies)
     if settings["dependencies"]:
         command = ["uv", "add", *settings["dependencies"]]
         subprocess.run(command, cwd=project_name)
@@ -205,7 +221,9 @@ def main(args: list[str], path: Path) -> None:
     settings_path = Path.home() / ".pproject.settings.json"
     ensure_settings(settings_path=settings_path)
 
-    project_name, version, git = parse_args(args, settings_path=settings_path)
+    project_name, version, git, dependencies = parse_args(
+        args, settings_path=settings_path
+    )
 
     with open(settings_path, encoding="utf-8") as f:
         settings = json.load(f)
@@ -220,8 +238,9 @@ def main(args: list[str], path: Path) -> None:
         project_name=project_name,
         git=git,
     )
-
-    install_dependencies(project_name=project_name, settings=settings)
+    install_dependencies(
+        project_name=project_name, settings=settings, dependencies=dependencies
+    )
 
     (project_path / ".env").write_text(
         "GREETINGS='Project created, enviroment variables working fine.'\n",

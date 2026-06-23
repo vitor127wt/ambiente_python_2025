@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from tomlkit import TOMLDocument, array, comment, document, dumps, table
+from tomlkit import TOMLDocument, array, comment, document, table
 
 if TYPE_CHECKING:
     from tomlkit.items import Table
@@ -80,6 +80,7 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
         ["venv", ".venv", "env", ".env", "node_modules", "__pycache__"],
     )
 
+    lint.add("fixable", ["ALL"])
     lint.add("select", settings["ruff_lint_rules_select"])
     lint.add("ignore", settings["ruff_lint_rules_ignore"])
 
@@ -239,27 +240,3 @@ def create_toml(
 
     toml.add("build-system", build_system())
     return toml
-
-
-dummy_settings: dict[str, Any] = {
-    "name": "user",
-    "email": "example@example.com",
-    "main_package_name": "my_package",
-    "git_user": "user",
-    "dependencies": ["python-dotenv"],
-    "dev_dependencies": ["ruff", "pyright", "pytest", "pytest-xdist"],
-    "ruff_lint_rules_select": [],
-    "ruff_lint_rules_ignore": ["T201", "COM812"],
-    "vs_code_settings": {},
-    "vs_code_extensions": {"recommendations": []},
-}
-
-
-with open("teste_toml.toml", "w", encoding="utf-8") as f:
-    f.write(
-        dumps(
-            data=create_toml(
-                "3.14", project_name="name", settings=dummy_settings
-            )
-        )
-    )
