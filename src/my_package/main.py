@@ -18,6 +18,7 @@ load_dotenv(".env")
 dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
     "name": "user",
     "email": "example@example.com",
+    "main_source_code_folder": "src",
     "main_package_name": "my_package",
     "git_user": "user",
     "dependencies": [],

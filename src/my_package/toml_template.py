@@ -44,6 +44,10 @@ def project_toml(
         f"{project_name}",
         f"{settings['main_package_name']}.my_module:function",
     )
+    scripts.add(
+        settings["main_source_code_folder"],
+        ".main:main",
+    )
 
     optional_dependencies.add("dev", ["ruff", "pytest", "pytest-xdist"])
     project.add("urls", urls)
@@ -91,7 +95,10 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
     format_.add("line-ending", "cr-lf")
 
     mccabe.add("max-complexity", 10)
-    isort.add("known-first-party", [f"{settings['main_package_name']}"])
+    isort.add(
+        "known-first-party",
+        [settings["main_source_code_folder"], settings["main_package_name"]],
+    )
 
     lint.add("per-file-ignores", per_file_ignores)
     lint.add("isort", isort)
@@ -161,14 +168,17 @@ def build_system() -> Table:
     return build_system
 
 
-def hatchling() -> Table:
+def hatchling(settings: dict[str, str]) -> Table:
     hatch = table()
     build = table()
     targets = table()
     wheel = table()
 
     # O Hatchling espera uma lista de caminhos no argumento packages
-    packages_array = ["src"]
+    packages_array = [
+        settings["main_source_code_folder"],
+        f"{settings['main_source_code_folder']}/{settings['main_package_name']}",
+    ]
 
     wheel.add("packages", packages_array)
     targets.add("wheel", wheel)
@@ -234,7 +244,7 @@ def create_toml(
     tool.add("ruff", tool_ruff_toml(version, settings))
     tool.add("pyright", tool_pyright_toml(version))
     tool.add("pytest", tool_pytest_toml())
-    tool.add("hatch", hatchling())
+    tool.add("hatch", hatchling(settings=settings))
 
     toml.add("tool", tool)
 
