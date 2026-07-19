@@ -1,3 +1,4 @@
+#!/usr/bin/env uv run
 from typing import TYPE_CHECKING, Any
 
 from tomlkit import TOMLDocument, array, comment, document, table
@@ -6,14 +7,11 @@ if TYPE_CHECKING:
     from tomlkit.items import Table
 
 
-def project_toml(
-    project_name: str, version: str, settings: dict[Any, Any]
-) -> Table:
+def project_toml(project_name: str, version: str, settings: dict[Any, Any]) -> Table:
     project = table()
     urls = table()
     authors = array()
     scripts = table()
-    optional_dependencies = table()
 
     project.add("name", project_name)
     project.add("version", "0.0.1")
@@ -32,28 +30,23 @@ def project_toml(
     comment_ = (
         f"Define os comandos de console. A chave ('{project_name}')\n"
         "# é o comando.\n"
-        "# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n"  # noqa: E501
+        "# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n"
         "# Ex: 'my_package.main:run'\n"
         "# -> src/my_package/main.py (e a função run lá dentro).\n"
-        "# Lembre de sincronizar o nome do pacote com 'known-first-party' do Ruff"  # noqa: E501
-        f'\n# {project_name} = "{settings["main_package_name"]}.my_module:function'  # noqa: E501
+        "# Lembre de sincronizar o nome do pacote com 'known-first-party' do Ruff"
+        f"\n# {project_name} = "
+        f'"{settings["main_package_name"]}.main:main"'
     )
 
     scripts.add(comment(comment_))
     scripts.add(
         f"{project_name}",
-        f"{settings['main_package_name']}.my_module:function",
-    )
-    scripts.add(
-        settings["main_source_code_folder"],
-        ".main:main",
+        f"{settings['main_package_name']}.main:main",
     )
 
-    optional_dependencies.add("dev", ["ruff", "pytest", "pytest-xdist"])
     project.add("urls", urls)
     project.add("authors", authors)
     project.add("scripts", scripts)
-    project.add("optional-dependencies", optional_dependencies)
 
     return project
 
@@ -74,7 +67,7 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
     isort = table()  # -> lint
     mccabe = table()  # -> lint
 
-    ruff.add("line-length", 80)
+    ruff.add("line-length", 88)
     ruff.add("target-version", f"py{version.replace('.', '')[:3]}")
     ruff.add("fix", True)  # noqa: FBT003
     ruff.add("show-fixes", True)  # noqa: FBT003
@@ -92,12 +85,12 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
 
     format_.add("quote-style", "double")
     format_.add("indent-style", "space")
-    format_.add("line-ending", "cr-lf")
+    format_.add("line-ending", "lf")
 
-    mccabe.add("max-complexity", 10)
+    mccabe.add("max-complexity", 12)
     isort.add(
         "known-first-party",
-        [settings["main_source_code_folder"], settings["main_package_name"]],
+        [settings["main_package_name"]],
     )
 
     lint.add("per-file-ignores", per_file_ignores)
@@ -108,7 +101,7 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
     return ruff
 
 
-def tool_pyright_toml(version: str) -> Table:
+def tool_pyright_toml(version: str, settings: dict[Any, Any]) -> Table:
     # Add to a tool() object
     pyright = table()
 
@@ -120,7 +113,7 @@ def tool_pyright_toml(version: str) -> Table:
     )
     pyright.add("typeCheckingMode", "strict")
     pyright.add("pythonVersion", f"{version}")
-    pyright.add("include", ["src", "tests"])
+    pyright.add("include", [settings["main_source_code_folder"], "tests"])
     pyright.add(
         "exclude",
         [
@@ -136,19 +129,21 @@ def tool_pyright_toml(version: str) -> Table:
 
     pyright.add("venv", ".venv")
     pyright.add("venvPath", ".")
-    pyright.add("executionEnvironments", [{"root": "src"}])
+    pyright.add(
+        "executionEnvironments", [{"root": settings["main_source_code_folder"]}]
+    )
 
     return pyright
 
 
-def tool_pytest_toml() -> Table:
+def tool_pytest_toml(settings: dict[Any, Any]) -> Table:
     # Add to a tool() object
     pytest = table()
     ini_options = table()
 
     ini_options.add("addopts", "-s --color=yes --tb=short")
-    ini_options.add("pythonpath", ["src"])
-    ini_options.add("testpath", ["tests"])
+    ini_options.add("pythonpath", [settings["main_source_code_folder"]])
+    ini_options.add("testpaths", ["tests"])
 
     pytest.add("ini_options", ini_options)
 
@@ -158,9 +153,7 @@ def tool_pytest_toml() -> Table:
 def build_system() -> Table:
     build_system = table()
     build_system.add(
-        comment(
-            "============================\n# Build\n# ============================"  # noqa: E501
-        )
+        comment("============================\n# Build\n# ============================")
     )
     build_system.add("requires", ["hatchling"])  # type: ignore
     build_system.add("build-backend", "hatchling.build")
@@ -176,7 +169,6 @@ def hatchling(settings: dict[str, str]) -> Table:
 
     # O Hatchling espera uma lista de caminhos no argumento packages
     packages_array = [
-        settings["main_source_code_folder"],
         f"{settings['main_source_code_folder']}/{settings['main_package_name']}",
     ]
 
@@ -242,8 +234,8 @@ def create_toml(
     tool = table()
 
     tool.add("ruff", tool_ruff_toml(version, settings))
-    tool.add("pyright", tool_pyright_toml(version))
-    tool.add("pytest", tool_pytest_toml())
+    tool.add("pyright", tool_pyright_toml(version, settings=settings))
+    tool.add("pytest", tool_pytest_toml(settings=settings))
     tool.add("hatch", hatchling(settings=settings))
 
     toml.add("tool", tool)

@@ -1,19 +1,18 @@
+#!/usr/bin/env uv run
+import argparse
 import json
-import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from textwrap import dedent
+from typing import Any, cast
 
-from dotenv import load_dotenv
 from tomlkit import dumps
 
 from my_package import gitignore
 from my_package.toml_template import create_toml
-
-load_dotenv(".env")
-
 
 dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
     "name": "user",
@@ -21,7 +20,7 @@ dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
     "main_source_code_folder": "src",
     "main_package_name": "my_package",
     "git_user": "user",
-    "dependencies": [],
+    "dependencies": ["python-dotenv"],
     "dev_dependencies": ["ruff", "pytest", "pytest-xdist"],
     "open_vscode": False,
     "ruff_lint_rules_select": [
@@ -60,76 +59,166 @@ dummy_settings: dict[str, str | list[str] | Any | dict[str, Any]] = {
         "RUF",
         "N",
     ],
-    "ruff_lint_rules_ignore": ["T201", "COM812"],
+    "ruff_lint_rules_ignore": ["T201", "COM812", "COM819", "EXE002"],
     "vs_code_settings": {},
     "vs_code_extensions": {"recommendations": []},
 }
 
 
+@dataclass(frozen=True)
+class CliOptions:
+    project_name: str
+    version: str
+    git: bool
+    dependencies: list[str]
+    config: bool
+
+
 def ensure_settings(settings_path: Path) -> None:
     if not settings_path.exists():
-        settings_path.touch(exist_ok=True)
-
         with open(settings_path, "w", encoding="utf-8") as f:
             json.dump(dummy_settings, f, indent=4, ensure_ascii=False)
 
 
-def parse_args(
-    args: list[str], settings_path: Path
-) -> tuple[str, str, bool, list[str]]:
-    if len(args) < 2:
-        print("Uso: pproject <nome_do_projeto>  OU  pproject -cfg")
-        sys.exit(1)
+def load_settings(settings_path: Path) -> dict[str, Any]:
+    ensure_settings(settings_path)
+    try:
+        with open(settings_path, encoding="utf-8") as f:
+            loaded = json.load(f)
+    except json.JSONDecodeError as error:
+        msg = f"Configuração JSON inválida em {settings_path}: {error}"
+        raise ValueError(msg) from error
 
-    if args[1] in ["-cfg", "--config"]:
-        os.startfile(f"{settings_path}")  # noqa: S606
-        sys.exit(0)
+    if not isinstance(loaded, dict):
+        msg = f"A configuração em {settings_path} deve ser um objeto JSON."
+        raise TypeError(msg)
 
-    project_name = args[1]
-    left_args = args[2:]
+    loaded_settings = cast("dict[str, Any]", loaded)
+    original_settings = dict(loaded_settings)
+    loaded_settings.pop("create_folders", None)
+    if loaded_settings.get("dependencies") == ["dotenv"]:
+        loaded_settings["dependencies"] = ["python-dotenv"]
 
-    version = None
-    git = False
-    dependencies: list[str] = []
-    for i, arg in enumerate(left_args):
-        match arg:
-            case "-v" | "--version":
-                if i + 1 < len(left_args):
-                    if left_args[i + 1] == "global":
-                        version = subprocess.getoutput(
-                            "python --version"
-                        ).split()[1]
-                    if version := re.search(
-                        r"[0-9]+[.][0-9]+", left_args[i + 1]
-                    ):
-                        version = version.group(0)
-                    else:
-                        print("❌ Erro: Versão do Python inválida.")
-                        sys.exit(1)
-                else:
-                    print("❌ Erro: Informe a versão após o parâmetro -v.")
-                    sys.exit(1)
-            case "-g" | "--git":
-                git = True
-            case "-d" | "--dependency":
-                if i + 1 < len(left_args):
-                    if "," in left_args[i + 1]:
-                        dependencies = left_args[i + 1].split(",")
-                    else:
-                        dependencies = [left_args[i + 1]]
-                else:
-                    print(
-                        "❌ Erro: Informe a ou as dependencias"
-                        "após o parâmetro -d."
-                    )
-                    sys.exit(1)
-            case _:
-                pass
+    settings = dict(dummy_settings)
+    settings.update(loaded_settings)
+    if settings != original_settings:
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4, ensure_ascii=False)
 
-    if version is None:
-        version = subprocess.getoutput("python --version").split()[1]
+    return settings
 
-    return project_name, version, git, dependencies
+
+def open_settings(settings_path: Path) -> None:
+    if sys.platform == "win32":
+        command = ["cmd", "/c", "start", "", str(settings_path)]
+    elif sys.platform == "darwin":
+        command = ["open", str(settings_path)]
+    else:
+        command = ["xdg-open", str(settings_path)]
+    subprocess.run(command, check=True)
+
+
+def current_python_version() -> str:
+    version = sys.version_info
+    return f"{version.major}.{version.minor}.{version.micro}"
+
+
+def parse_python_version(value: str) -> str:
+    if value == "global":
+        return current_python_version()
+    if re.fullmatch(r"\d+\.\d+(?:\.\d+)?", value) is None:
+        msg = "use 'global' ou uma versão como 3.14.3"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
+def parse_dependencies(value: str) -> list[str]:
+    dependencies = [dependency.strip() for dependency in value.split(",")]
+    if any(not dependency for dependency in dependencies):
+        msg = "informe dependências separadas por vírgula, sem itens vazios"
+        raise argparse.ArgumentTypeError(msg)
+    return dependencies
+
+
+def parse_args(args: list[str]) -> CliOptions:
+    parser = argparse.ArgumentParser(
+        prog=Path(args[0]).name,
+        description="Cria um novo projeto Python configurado com uv.",
+    )
+    parser.add_argument("project_name", nargs="?", help="nome do novo projeto")
+    parser.add_argument(
+        "-cfg",
+        "--config",
+        action="store_true",
+        help="abre o arquivo de configuração do pproject",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=parse_python_version,
+        help="versão do Python, por exemplo 3.14.3 ou global",
+    )
+    parser.add_argument(
+        "-d",
+        "--dependency",
+        action="append",
+        type=parse_dependencies,
+        default=[],
+        help="dependência ou lista separada por vírgulas; pode ser repetido",
+    )
+    parser.add_argument(
+        "-g",
+        "--git",
+        action="store_true",
+        help="inicializa o Git e cria o primeiro commit",
+    )
+    parsed = parser.parse_args(args[1:])
+
+    if parsed.config:
+        if parsed.project_name or parsed.version or parsed.git or parsed.dependency:
+            parser.error("--config não pode ser combinado com criação de projeto")
+        return CliOptions(
+            project_name="",
+            version=current_python_version(),
+            git=False,
+            dependencies=[],
+            config=True,
+        )
+
+    if parsed.project_name is None:
+        parser.error("informe o nome do projeto")
+
+    dependencies = [
+        dependency
+        for dependency_group in parsed.dependency
+        for dependency in dependency_group
+    ]
+    return CliOptions(
+        project_name=parsed.project_name,
+        version=parsed.version or current_python_version(),
+        git=parsed.git,
+        dependencies=dependencies,
+        config=False,
+    )
+
+
+def resolve_project_path(path: Path, project_name: str) -> Path:
+    relative_path = Path(project_name)
+    if (
+        not project_name
+        or relative_path.is_absolute()
+        or len(relative_path.parts) != 1
+        or project_name in {".", ".."}
+    ):
+        msg = "O nome do projeto deve ser um nome simples, sem caminhos."
+        raise ValueError(msg)
+
+    project_path = path / relative_path
+    if project_path.exists():
+        msg = f"O destino já existe: {project_path}"
+        raise FileExistsError(msg)
+
+    return project_path
 
 
 def build_project_structure(
@@ -152,28 +241,51 @@ def build_project_structure(
         json.dump(settings["vs_code_extensions"], f, indent=4)
 
     # Main package
-    package_path = project_path / f"src/{settings['main_package_name']}"
+    package_path = (
+        project_path
+        / f"{settings['main_source_code_folder']}/{settings['main_package_name']}"
+    )
+    tests_path = project_path / "tests"
     package_path.mkdir(parents=True, exist_ok=True)
+    tests_path.mkdir(parents=True, exist_ok=True)
 
-    main = r"""import os
+    main_source = dedent(
+        r"""
+        import os
 
-from dotenv import load_dotenv
-
-
-def main() -> None:
-    load_dotenv()
-    print(f'\n{os.environ["GREETINGS"]}')
+        from dotenv import load_dotenv
 
 
-if __name__ == "__main__":
-    main()
-"""
-    main_file = project_path / "src/main.py"
-    main_file.write_text(main, encoding="utf-8")
+        def main() -> None:
+            load_dotenv()
+            print(f'\n{os.environ["GREETINGS"]}')
+
+
+        if __name__ == "__main__":
+            main()
+        """
+    ).lstrip()
+    test_source = dedent(
+        f"""\
+        import pytest
+
+        from {settings["main_package_name"]}.main import main
+
+
+        def test_main(
+            monkeypatch: pytest.MonkeyPatch,
+            capsys: pytest.CaptureFixture[str],
+        ) -> None:
+            monkeypatch.setenv("GREETINGS", "Template is working.")
+
+            main()
+
+            assert capsys.readouterr().out.strip() == "Template is working."
+        """
+    )
+    (package_path / "main.py").write_text(main_source, encoding="utf-8")
     (package_path / "__init__.py").write_text("", encoding="utf-8")
-
-    (project_path / "tests").mkdir(parents=True, exist_ok=True)
-
+    (tests_path / "test_main.py").write_text(test_source, encoding="utf-8")
     # Metadata
     toml_path = project_path / "pyproject.toml"
     with open(toml_path, "w", encoding="utf-8") as f:
@@ -188,73 +300,86 @@ if __name__ == "__main__":
         )
 
     if git:
-        (project_path / ".gitignore").write_text(
-            gitignore.template, encoding="utf-8"
-        )
+        (project_path / ".gitignore").write_text(gitignore.template, encoding="utf-8")
 
     (project_path / "README.md").write_text("", encoding="utf-8")
 
 
 def install_dependencies(
-    project_name: str, settings: dict[str, list[str]], dependencies: list[str]
+    project_path: Path, settings: dict[str, list[str]], dependencies: list[str]
 ) -> None:
     if settings["dev_dependencies"]:
         command = ["uv", "add", "--dev", *settings["dev_dependencies"]]
-        subprocess.run(command, cwd=project_name)
+        subprocess.run(command, cwd=project_path, check=True)
     settings["dependencies"].extend(dependencies)
     if settings["dependencies"]:
         command = ["uv", "add", *settings["dependencies"]]
-        subprocess.run(command, cwd=project_name)
+        subprocess.run(command, cwd=project_path, check=True)
 
 
-def init_git(project_name: str) -> None:
-    subprocess.run(["git", "init"], cwd=project_name, check=True)
+def init_git(project_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=project_path, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=project_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=project_path, check=True)
     subprocess.run(
-        ["git", "branch", "-M", "main"], cwd=project_name, check=True
-    )
-    subprocess.run(["git", "add", "."], cwd=project_name, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Clear Project"], cwd=project_name, check=True
+        ["git", "commit", "-m", "Clear Project"], cwd=project_path, check=True
     )
 
 
 def main(args: list[str], path: Path) -> None:
-    settings_path = Path.home() / ".pproject.settings.json"
-    ensure_settings(settings_path=settings_path)
+    options = parse_args(args)
 
-    project_name, version, git, dependencies = parse_args(
-        args, settings_path=settings_path
+    settings_path = Path.home() / ".pproject.settings.json"
+    if options.config:
+        ensure_settings(settings_path=settings_path)
+        open_settings(settings_path)
+        return
+
+    try:
+        project_path = resolve_project_path(path, options.project_name)
+    except (FileExistsError, ValueError) as error:
+        print(f"Erro: {error}")
+        sys.exit(1)
+
+    try:
+        settings = load_settings(settings_path)
+    except (TypeError, ValueError) as error:
+        print(f"Erro: {error}")
+        sys.exit(1)
+
+    subprocess.run(
+        ["uv", "init", str(project_path), "--bare", "--python", options.version],
+        check=True,
     )
 
-    with open(settings_path, encoding="utf-8") as f:
-        settings = json.load(f)
-
-    subprocess.call(["uv", "init", project_name, "--bare", "--python", version])
-
-    project_path = path / f"{project_name}"
     build_project_structure(
         project_path=project_path,
         settings=settings,
-        version=version,
-        project_name=project_name,
-        git=git,
+        version=options.version,
+        project_name=options.project_name,
+        git=options.git,
     )
     install_dependencies(
-        project_name=project_name, settings=settings, dependencies=dependencies
+        project_path=project_path,
+        settings=settings,
+        dependencies=options.dependencies,
     )
 
-    (project_path / ".env").write_text(
-        "GREETINGS='Project created, enviroment variables working fine.'\n",
-        encoding="utf-8",
+    env_content = "GREETINGS='Project created, environment variables working fine.'\n"
+    (project_path / ".env").write_text(env_content, encoding="utf-8")
+    (project_path / ".env.example").write_text(env_content, encoding="utf-8")
+
+    if options.git:
+        init_git(project_path=project_path)
+
+    subprocess.run(
+        ["uv", "run", "-m", f"{settings['main_package_name']}.main"],
+        cwd=project_path,
+        check=True,
     )
-
-    if git:
-        init_git(project_name=project_name)
-
-    subprocess.call(["uv", "run", "main.py"], cwd=(project_path / "src"))
 
     if settings["open_vscode"]:
-        subprocess.run(["code", str(project_name)], shell=True)  # noqa: S602
+        subprocess.run(["code", str(project_path)], check=True)
 
 
 if __name__ == "__main__":
