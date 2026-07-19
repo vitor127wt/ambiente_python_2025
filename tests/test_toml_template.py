@@ -56,17 +56,15 @@ def test_build_project_structure_creates_importable_entrypoint(tmp_path: Path) -
         git=False,
     )
 
-    main_path = project_path / "src" / "my_package" / "main.py"
+    main_path = project_path / "src" / "main.py"
     compile(main_path.read_text(encoding="utf-8"), str(main_path), "exec")
     test_path = project_path / "tests" / "test_main.py"
     compile(test_path.read_text(encoding="utf-8"), str(test_path), "exec")
     generated = tomllib.loads((project_path / "pyproject.toml").read_text())
 
-    assert generated["project"]["scripts"] == {
-        "example-project": "my_package.main:main"
-    }
+    assert generated["project"]["scripts"] == {"example-project": "main:main"}
     assert generated["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == [
-        "src/my_package"
+        "src",
     ]
     assert "tests/" not in gitignore_template.splitlines()
 

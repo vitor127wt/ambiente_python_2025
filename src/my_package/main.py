@@ -245,6 +245,7 @@ def build_project_structure(
         project_path
         / f"{settings['main_source_code_folder']}/{settings['main_package_name']}"
     )
+    source_path = project_path / settings["main_source_code_folder"]
     tests_path = project_path / "tests"
     package_path.mkdir(parents=True, exist_ok=True)
     tests_path.mkdir(parents=True, exist_ok=True)
@@ -266,10 +267,13 @@ def build_project_structure(
         """
     ).lstrip()
     test_source = dedent(
-        f"""\
-        import pytest
+        """\
+        from typing import TYPE_CHECKING
 
-        from {settings["main_package_name"]}.main import main
+        from app.main import main
+
+        if TYPE_CHECKING:
+            import pytest
 
 
         def test_main(
@@ -283,7 +287,7 @@ def build_project_structure(
             assert capsys.readouterr().out.strip() == "Template is working."
         """
     )
-    (package_path / "main.py").write_text(main_source, encoding="utf-8")
+    (source_path / "main.py").write_text(main_source, encoding="utf-8")
     (package_path / "__init__.py").write_text("", encoding="utf-8")
     (tests_path / "test_main.py").write_text(test_source, encoding="utf-8")
     # Metadata
@@ -373,7 +377,7 @@ def main(args: list[str], path: Path) -> None:
         init_git(project_path=project_path)
 
     subprocess.run(
-        ["uv", "run", "-m", f"{settings['main_package_name']}.main"],
+        ["uv", "run", f"{settings['main_source_code_folder']}/main.py"],
         cwd=project_path,
         check=True,
     )

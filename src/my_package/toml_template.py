@@ -32,16 +32,15 @@ def project_toml(project_name: str, version: str, settings: dict[Any, Any]) -> T
         "# é o comando.\n"
         "# O valor aponta para 'nome_do_pacote.nome_do_modulo:nome_da_funcao'.\n"
         "# Ex: 'my_package.main:run'\n"
-        "# -> src/my_package/main.py (e a função run lá dentro).\n"
+        "# -> src/main.py (e a função main lá dentro).\n"
         "# Lembre de sincronizar o nome do pacote com 'known-first-party' do Ruff"
-        f"\n# {project_name} = "
-        f'"{settings["main_package_name"]}.main:main"'
+        f'\n# {project_name} = "main:main"'
     )
 
     scripts.add(comment(comment_))
     scripts.add(
         f"{project_name}",
-        f"{settings['main_package_name']}.main:main",
+        "main:main",
     )
 
     project.add("urls", urls)
@@ -90,7 +89,7 @@ def tool_ruff_toml(version: str, settings: dict[Any, Any]) -> Table:
     mccabe.add("max-complexity", 12)
     isort.add(
         "known-first-party",
-        [settings["main_package_name"]],
+        [settings["main_source_code_folder"]],
     )
 
     lint.add("per-file-ignores", per_file_ignores)
@@ -169,7 +168,7 @@ def hatchling(settings: dict[str, str]) -> Table:
 
     # O Hatchling espera uma lista de caminhos no argumento packages
     packages_array = [
-        f"{settings['main_source_code_folder']}/{settings['main_package_name']}",
+        settings["main_source_code_folder"],
     ]
 
     wheel.add("packages", packages_array)
